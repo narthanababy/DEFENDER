@@ -1,93 +1,213 @@
-# DEFENDER
+# DEFENDER – DefCam Android Camera Node
 
-> **DEFENDER** is an Android mobile application built in Kotlin using Gradle that provides [brief description - e.g., security monitoring / surveillance / defensive tools].
+DefCam is an Android camera streaming application built in Kotlin using CameraX.
+It acts as a mobile camera node for the DEFENDER wildlife detection system, capturing images from the device camera and streaming them to the Edge AI inference engine (Raspberry Pi) for real-time animal detection.
 
 ---
 
 ## 🚀 Project Overview
 
-**DEFENDER** is designed to [insert key app goal or user problem it solves]. It leverages modern Android architecture patterns to deliver a reliable and performant experience.
+DefCam allows an Android device to function as a portable camera sensor in the DEFENDER architecture.
 
-### Key Features
-- ✅ [Feature 1] (e.g., real-time camera monitoring)
-- ✅ [Feature 2] (e.g., motion detection alerts)
-- ✅ [Feature 3] (e.g., offline storage / local encryption)
-- ✅ [Feature 4] (e.g., push notifications / background service support)
+Instead of requiring a fixed camera connected to the Raspberry Pi, a smartphone can capture frames and stream them directly to the AI engine over the network.
+
+The AI engine processes the images using YOLOv26 Nano, performs detection, and returns the detection count.
+
+This enables flexible deployment of camera nodes across farms or remote locations.
+
+---
+
+## 🌟 Key Features
+
+✅ **Live Camera Streaming**
+
+Uses Android CameraX API to capture frames.
+
+✅ **Direct Edge AI Integration**
+
+Frames are streamed to the DEFENDER Raspberry Pi inference engine.
+
+✅ **TCP Socket Communication**
+
+Frames transmitted using a lightweight binary protocol.
+
+✅ **Automatic Reconnection**
+
+If connection drops, the client retries automatically.
+
+✅ **Portable Camera Node**
+
+Allows smartphones to act as mobile farm cameras.
+
+---
+
+## 🏗 System Role in DEFENDER Architecture
+
+DefCam acts as a camera node in the overall DEFENDER system pipeline.
+
+```
+Android Camera (DefCam)
+        ↓
+JPEG Frame Capture
+        ↓
+TCP Socket Transmission
+        ↓
+Raspberry Pi AI Engine
+        ↓
+YOLOv26 Nano Detection
+        ↓
+Detection Metadata Stream
+        ↓
+Web / Mobile Monitoring Systems
+```
+
+This allows multiple camera nodes to feed the same central AI engine.
+
+---
+
+## ⚙️ Technology Stack
+
+- Android Development
+- Kotlin
+- Android Studio
+- Gradle
+- CameraX API
+- Android Camera Hardware
+- TCP Socket Communication
+- DataOutputStream / DataInputStream
+- JPEG Frame Encoding
 
 ---
 
 ## 🛠 Prerequisites
 
-Before you begin, ensure you have the following installed:
+Before building the project ensure you have:
 
-- **Android Studio** (latest stable version)
-- **JDK 11+** (as required by Android Gradle Plugin)
-- **Gradle** (project uses wrapper: `./gradlew` / `gradlew.bat`)
-
-> ⚠️ On Windows, make sure `JAVA_HOME` is set and points to a compatible JDK.
-
----
-
-## 📁 Repository Structure
-
-```
-DefCam/                # Root Gradle project
-  ├── app/             # Android app module
-  │   ├── src/         # Source code (main, test, androidTest)
-  │   ├── build.gradle.kts
-  │   └── proguard-rules.pro
-  ├── build.gradle.kts
-  ├── settings.gradle.kts
-  ├── gradle/          # Version catalog + wrapper config
-  ├── gradle.properties
-  └── local.properties # SDK path (local to your machine)
-```
+- Android Studio (latest stable version)
+- Android SDK
+- JDK 11+
+- A DEFENDER AI engine running on Raspberry Pi
 
 ---
 
-## 🧩 Setup Instructions
+## 📁 Project Structure
 
-1. **Clone the repository**
-
-```bash
-git clone <repo-url> defender
-cd defender
 ```
-
-2. **Configure local SDK path**
-
-If not already present, create or update `local.properties` in the root with your Android SDK location:
-
-```properties
-sdk.dir=C:/Users/<you>/AppData/Local/Android/sdk
+DefCam/
+ ├── app/
+ │   ├── src/main/
+ │   │   ├── java/com/defender/defcam/
+ │   │   │   └── MainActivity.kt
+ │   │   ├── res/
+ │   │   └── AndroidManifest.xml
+ │   ├── build.gradle.kts
+ │   └── proguard-rules.pro
+ │
+ ├── build.gradle.kts
+ ├── settings.gradle.kts
+ ├── gradle/
+ └── gradle.properties
 ```
-
-3. **Open project in Android Studio**
-
-- Use **File > Open** and select the `DefCam` folder.
-- Let Android Studio sync the Gradle project.
 
 ---
 
-## 🏗 Build & Run
+## 📷 Camera Streaming Workflow
+
+The application captures frames and sends them to the AI engine.
+
+### 1️⃣ Camera Initialization
+
+The app requests camera permission and initializes CameraX preview and capture pipeline.
+
+### 2️⃣ Frame Capture
+
+Images are captured using:
+
+`ImageCapture.takePicture()`
+
+Frames are stored temporarily in the app cache.
+
+### 3️⃣ JPEG Encoding
+
+Captured frames are saved as:
+
+`frame.jpg`
+
+This reduces transmission bandwidth.
+
+### 4️⃣ Frame Transmission
+
+Frames are sent via TCP socket to the AI engine.
+
+Protocol format:
+
+```
+[Frame Size - 4 bytes]
+[JPEG Image Bytes]
+```
+
+The frame size is encoded using Little Endian byte order.
+
+### 5️⃣ Detection Response
+
+The AI engine responds with:
+
+**Object Count (integer)**
+
+Example log:
+
+`Detections: 2`
+
+---
+
+## 🔌 Network Configuration
+
+Update the engine IP inside `MainActivity.kt`:
+
+```kotlin
+private val TARGET_IP = "100.122.74.118"
+private val PORT = 8888
+```
+
+This should point to the DEFENDER AI Engine (Raspberry Pi).
+
+---
+
+## 🏗 Frame Streaming Loop
+
+Frames are transmitted periodically using a background loop.
+
+capture frame
+      ↓
+compress to JPEG
+      ↓
+send over socket
+      ↓
+receive detection count
+      ↓
+repeat
+
+Current capture interval:
+
+`1 frame per second`
+
+---
+
+## 🧪 Running the App
 
 ### From Android Studio
 
-- Select **app** module
-- Choose a target device or emulator
-- Click **Run ▶️**
+- Open the DefCam project
+- Connect Android device or start emulator
+- Click Run ▶️
 
-### From the command line
+### From command line
 
 ```bash
-# Windows
-./gradlew clean assembleDebug
-
-# macOS/Linux
-./gradlew clean assembleDebug
+./gradlew assembleDebug
 ```
 
-To install and run on a connected device:
+Install on device:
 
 ```bash
 ./gradlew installDebug
@@ -95,59 +215,65 @@ To install and run on a connected device:
 
 ---
 
-## 🧪 Testing
+## ⚠️ Permissions Required
 
-### Unit tests
+The app requires:
 
-```bash
-./gradlew test
+- CAMERA
+- INTERNET
+
+Defined in `AndroidManifest.xml`.
+
+These permissions allow the device to:
+
+- capture images
+- communicate with the AI server.
+
+---
+
+## 📡 Connection Reliability
+
+The app implements automatic reconnection.
+
+If the socket connection fails:
+
+- Retry connection every 3 seconds
+
+This ensures continuous streaming even in unstable networks.
+
+---
+
+## 🔮 Future Improvements
+
+Potential enhancements include:
+
+- Real-time video streaming (instead of frame capture)
+- Adjustable frame rate
+- Edge buffering for unstable networks
+- Detection overlay preview on the device
+- Multi-camera support
+
+---
+
+## 📬 Integration with DEFENDER Platform
+
+DefCam works together with the main DEFENDER system:
+
 ```
-
-### Instrumented Android tests
-
-```bash
-./gradlew connectedAndroidTest
+DefCam (Android Camera Node)
+       ↓
+Edge AI Engine (Raspberry Pi)
+       ↓
+Flask Streaming Server
+       ↓
+Web Dashboard / Mobile App
+       ↓
+Turret Tracking System
 ```
-
----
-
-## 🧭 Configuration & Customization
-
-- **App ID / package name:** `com.example.defender` (update in `app/build.gradle.kts` and `AndroidManifest.xml` if needed)
-- **Versioning:** managed in `app/build.gradle.kts` (`versionCode`, `versionName`)
-- **Dependencies:** controlled via `gradle/libs.versions.toml`
-
----
-
-## 📌 Common Troubleshooting
-
-- **Gradle sync failures**:
-  - Delete `.gradle/` and `app/build/` then rebuild.
-  - Ensure Android SDK components are installed (Platform Tools, Build Tools, SDK Platform).
-
-- **Emulator not starting**:
-  - Create a new AVD in **Android Studio > AVD Manager**.
-  - Verify virtualization is enabled in BIOS.
-
----
-
-## 🤝 Contributing
-
-If you want to contribute:
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/xyz`)
-3. Commit changes with clear messages
-4. Open a PR and describe your changes
 
 ---
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE). See the LICENSE file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
----
-
-## 📬 Contact
-
-Questions? Reach out to the project maintainer or open an issue.
